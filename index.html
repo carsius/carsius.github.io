@@ -1,645 +1,971 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PED压力容器类别计算工具</title>
+    <title>PED Pressure Rating Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+    
+    <!-- Tailwind配置 -->
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
-                        primary: '#0f52ba',
-                        secondary: '#4682b4',
-                        accent: '#5b8fb9',
-                        danger: '#b80c09',
-                        warning: '#e6b89c',
-                        success: '#4a6741',
-                        neutral: '#586f7c',
-                        light: '#f4f4f9',
-                        dark: '#2c3e50'
+                        primary: '#165DFF',
+                        secondary: '#36CFC9',
+                        accent: '#FF7D00',
+                        danger: '#F53F3F',
+                        neutral: '#86909C',
+                        'neutral-light': '#F2F3F5',
+                        'neutral-dark': '#1D2129'
                     },
                     fontFamily: {
-                        sans: ['Roboto', 'Arial', 'sans-serif'],
+                        inter: ['Inter', 'system-ui', 'sans-serif'],
                     },
                 }
             }
         }
     </script>
+    
     <style type="text/tailwindcss">
         @layer utilities {
             .content-auto {
                 content-visibility: auto;
             }
-            .card-shadow {
-                box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
-            }
-            .input-focus {
-                @apply focus:ring-2 focus:ring-accent focus:border-accent focus:outline-none;
+            .shadow-soft {
+                box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
             }
             .transition-all-300 {
                 transition: all 300ms ease-in-out;
             }
-            .medium-card {
-                @apply p-4 bg-light rounded-lg border border-gray-200 relative;
+            .card-hover {
+                @apply hover:shadow-lg hover:-translate-y-1 transition-all duration-300;
             }
-            .result-highlight {
-                @apply bg-yellow-50 border-l-4 border-yellow-400 p-3 my-4;
+            .log-scale-tick {
+                font-size: 0.75rem;
             }
         }
     </style>
 </head>
-<body class="bg-gray-100 font-sans text-dark">
+<body class="font-inter bg-gray-50 text-neutral-dark min-h-screen">
     <!-- 顶部导航 -->
-    <header class="bg-primary text-white shadow-md">
-        <div class="container mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center">
-            <div class="flex items-center space-x-3 mb-3 md:mb-0">
-                <i class="fa fa-industry text-2xl"></i>
-                <h1 class="text-xl md:text-2xl font-bold">PED 2014/68/EU 压力容器类别计算工具</h1>
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-tachometer text-primary text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold text-primary">PED Pressure Rating Tool</h1>
             </div>
-            <nav>
-                <ul class="flex flex-wrap justify-center space-x-4 md:space-x-6">
-                    <li><a href="#calculator" class="hover:text-gray-200 transition-all-300"><i class="fa fa-calculator mr-1"></i>计算器</a></li>
-                    <li><a href="#classification" class="hover:text-gray-200 transition-all-300"><i class="fa fa-list-ol mr-1"></i>分类标准</a></li>
-                    <li><a href="#guidance" class="hover:text-gray-200 transition-all-300"><i class="fa fa-file-text-o mr-1"></i>使用指南</a></li>
-                </ul>
-            </nav>
+            <div class="hidden md:flex items-center space-x-6">
+                <a href="#" class="text-neutral hover:text-primary transition-all-300">Home</a>
+                <a href="#" class="text-neutral hover:text-primary transition-all-300">Documentation</a>
+                <a href="#" class="text-neutral hover:text-primary transition-all-300">About PED</a>
+                <a href="#" class="text-neutral hover:text-primary transition-all-300">Contact</a>
+            </div>
+            <button class="md:hidden text-neutral text-xl">
+                <i class="fa fa-bars"></i>
+            </button>
         </div>
     </header>
 
+    <!-- 主内容区 -->
     <main class="container mx-auto px-4 py-8">
-        <!-- 介绍部分 -->
-        <section class="mb-10 bg-white rounded-lg p-6 card-shadow">
-            <h2 class="text-2xl font-bold mb-4 text-primary flex items-center">
-                <i class="fa fa-info-circle mr-2"></i>关于本工具
-            </h2>
-            <p class="text-gray-700 leading-relaxed mb-4">
-                本工具根据欧盟《压力设备指令》(PED 2014/68/EU)标准，帮助确定压力容器的分类等级。计算基于压力、容积、介质危险性和流体状态等关键参数，遵循指令附件Ⅱ中的分类规则。
-            </p>
-            <p class="text-gray-700 leading-relaxed">
-                结果仅供初步设计参考，不能替代专业的合规性评估。最终分类应结合完整的设计文件和专业审核确定。
-            </p>
-        </section>
-
-        <!-- 计算表单和结果 -->
-        <section id="calculator" class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+        <!-- 页面标题 -->
+        <div class="text-center mb-10">
+            <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-3">Pressure Equipment Directive (PED) Rating Calculator</h2>
+            <p class="text-neutral max-w-3xl mx-auto">Determine the PED pressure rating for your equipment based on type, fluid, pressure, and volume/DN parameters.</p>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <!-- 输入表单 -->
-            <div class="lg:col-span-2 bg-white rounded-lg p-6 card-shadow">
-                <h2 class="text-2xl font-bold mb-6 text-primary flex items-center">
-                    <i class="fa fa-pencil-square-o mr-2"></i>输入参数
-                </h2>
-                
-                <form id="calculationForm" class="space-y-6">
-                    <!-- 基本参数 -->
-                    <div class="border-b border-gray-200 pb-5">
-                        <h3 class="text-lg font-semibold mb-4 text-dark flex items-center">
-                            <i class="fa fa-cogs text-accent mr-2"></i>基本参数
-                        </h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                            <div>
-                                <label for="vesselType" class="block text-sm font-medium text-gray-700 mb-1">设备类型 <span class="text-danger">*</span></label>
-                                <select id="vesselType" class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" required>
-                                    <option value="">请选择设备类型</option>
-                                    <option value="vessel">压力容器</option>
-                                    <option value="heatExchanger">换热器</option>
-                                    <option value="reactor">反应釜</option>
-                                    <option value="storage">储存容器</option>
-                                    <option value="other">其他</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="fluidState" class="block text-sm font-medium text-gray-700 mb-1">流体状态 <span class="text-danger">*</span></label>
-                                <select id="fluidState" class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" required>
-                                    <option value="">请选择流体状态</option>
-                                    <option value="liquid">液体</option>
-                                    <option value="gas">气体/蒸汽</option>
-                                    <option value="twoPhase">气液两相</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label for="designPressure" class="block text-sm font-medium text-gray-700 mb-1">设计压力 (bar) <span class="text-danger">*</span></label>
-                                <div class="relative">
-                                    <input type="number" id="designPressure" min="0" step="0.1" class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" required placeholder="≥0.5 bar">
-                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
-                                        bar
-                                    </div>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">1 bar = 0.1 MPa</p>
-                            </div>
-                            <div>
-                                <label for="vesselVolume" class="block text-sm font-medium text-gray-700 mb-1">容积 (升) <span class="text-danger">*</span></label>
-                                <div class="relative">
-                                    <input type="number" id="vesselVolume" min="0.1" step="0.1" class="w-full px-4 py-2 border border-gray-300 rounded-md input-focus" required placeholder="≥0.1 升">
-                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
-                                        L
-                                    </div>
-                                </div>
-                                <p class="text-xs text-gray-500 mt-1">1 m³ = 1000 升</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 介质信息 - 支持自由添加多个介质 -->
-                    <div>
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-lg font-semibold text-dark flex items-center">
-                                <i class="fa fa-flask text-accent mr-2"></i>介质信息 <span class="text-danger">*</span>
-                            </h3>
-                            <button type="button" id="addMediumBtn" class="text-primary hover:text-primary/80 flex items-center text-sm font-medium transition-all-300">
-                                <i class="fa fa-plus-circle mr-1"></i> 添加介质
-                            </button>
-                        </div>
-                        
-                        <div id="mediumContainer" class="space-y-4">
-                            <!-- 初始介质卡片 -->
-                            <div class="medium-card" data-index="0">
-                                <div class="absolute top-3 right-3">
-                                    <button type="button" class="remove-medium text-gray-400 hover:text-danger transition-all-300" disabled>
-                                        <i class="fa fa-times"></i>
-                                    </button>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div class="md:col-span-1">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">介质名称 <span class="text-danger">*</span></label>
-                                        <input type="text" class="medium-name w-full px-4 py-2 border border-gray-300 rounded-md input-focus" required placeholder="例如：丙烯">
-                                    </div>
-                                    <div class="md:col-span-2">
-                                        <label class="block text-sm font-medium text-gray-700 mb-1">介质危险性分类 <span class="text-danger">*</span></label>
-                                        <select class="medium-risk w-full px-4 py-2 border border-gray-300 rounded-md input-focus" required>
-                                            <option value="">请选择介质危险性</option>
-                                            <option value="exposure">暴露于环境有危险 - 第1组</option>
-                                            <option value="highlyToxic">高毒性物质 - 第2组</option>
-                                            <option value="toxic">有毒物质 - 第3组</option>
-                                            <option value="flammable">易燃物质 - 第4组</option>
-                                            <option value="oxidizing">氧化性物质 - 第5组</option>
-                                            <option value="otherDangerous">其他危险物质 - 第6组</option>
-                                            <option value="nonDangerous">非危险物质 - 第7组</option>
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <p class="text-sm text-gray-500 italic mt-4">
-                            注：根据PED 2014/68/EU，容器分类将基于最危险的介质特性
-                        </p>
-                    </div>
-
-                    <div class="flex justify-center pt-4">
-                        <button type="submit" class="bg-primary hover:bg-primary/90 text-white font-medium px-8 py-3 rounded-md transition-all-300 flex items-center shadow-md hover:shadow-lg">
-                            <i class="fa fa-calculator mr-2"></i> 计算PED类别
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- 计算结果 -->
             <div class="lg:col-span-1">
-                <div id="resultCard" class="bg-white rounded-lg p-6 card-shadow h-full flex flex-col">
-                    <h2 class="text-2xl font-bold mb-6 text-primary flex items-center">
-                        <i class="fa fa-bar-chart mr-2"></i>计算结果
-                    </h2>
+                <div class="bg-white rounded-xl shadow-soft p-6 card-hover">
+                    <h3 class="text-xl font-semibold mb-5 flex items-center">
+                        <i class="fa fa-sliders text-primary mr-2"></i>
+                        Input Parameters
+                    </h3>
                     
-                    <div id="initialMessage" class="flex-1 flex flex-col items-center justify-center text-gray-500 p-4 text-center">
-                        <i class="fa fa-file-text-o text-5xl mb-4 text-gray-300"></i>
-                        <p>请填写左侧表单并点击"计算PED类别"按钮获取结果</p>
-                        <p class="text-sm mt-2">结果将基于PED 2014/68/EU标准</p>
+                    <form id="calculatorForm" class="space-y-5">
+                        <!-- 设备类型 -->
+                        <div>
+                            <label for="equipmentType" class="block text-sm font-medium text-neutral-dark mb-1">Equipment Type <span class="text-danger">*</span></label>
+                            <select id="equipmentType" name="equipmentType" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all-300">
+                                <option value="" disabled selected>Select equipment type</option>
+                                <option value="vessel">Vessel</option>
+                                <option value="piping">Piping</option>
+                                <option value="steam-generator">Steam Generator</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 流体类型 -->
+                        <div id="fluidTypeContainer">
+                            <label for="fluidType" class="block text-sm font-medium text-neutral-dark mb-1">Fluid Type <span class="text-danger">*</span></label>
+                            <select id="fluidType" name="fluidType" required
+                                class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all-300">
+                                <option value="" disabled selected>Select fluid type</option>
+                                <option value="group1gas">Group 1 Gas</option>
+                                <option value="group2gas">Group 2 Gas</option>
+                                <option value="group1liquid">Group 1 Liquid</option>
+                                <option value="group2liquid">Group 2 Liquid</option>
+                            </select>
+                        </div>
+                        
+                        <!-- 压力 -->
+                        <div>
+                            <label for="pressure" class="block text-sm font-medium text-neutral-dark mb-1">Pressure (bar) <span class="text-danger">*</span></label>
+                            <div class="relative">
+                                <input type="number" id="pressure" name="pressure" min="0.5" step="0.1" required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all-300"
+                                    placeholder="Enter pressure value">
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <span class="text-neutral">bar</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 体积或DN -->
+                        <div id="volumeOrDNContainer">
+                            <label for="volume" class="block text-sm font-medium text-neutral-dark mb-1">Volume (L) <span class="text-danger">*</span></label>
+                            <div class="relative">
+                                <input type="number" id="volume" name="volume" min="0.1" step="0.1" required
+                                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all-300"
+                                    placeholder="Enter volume value">
+                                <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <span class="text-neutral">L</span>
+                                </div>
+                            </div>
+                            
+                            <div id="dnContainer" class="hidden">
+                                <label for="dn" class="block text-sm font-medium text-neutral-dark mb-1">Nominal Diameter (DN) <span class="text-danger">*</span></label>
+                                <div class="relative">
+                                    <input type="number" id="dn" name="dn" min="0.1" step="1" required
+                                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all-300"
+                                        placeholder="Enter DN value">
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                        <span class="text-neutral">DN</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 提交按钮 -->
+                        <button type="submit" 
+                            class="w-full bg-primary hover:bg-primary/90 text-white font-medium py-3 px-4 rounded-lg transition-all-300 flex items-center justify-center">
+                            <i class="fa fa-calculator mr-2"></i>
+                            Calculate Pressure Rating
+                        </button>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- 结果展示 -->
+            <div class="lg:col-span-2">
+                <!-- 结果卡片 -->
+                <div class="bg-white rounded-xl shadow-soft p-6 mb-8 card-hover">
+                    <h3 class="text-xl font-semibold mb-5 flex items-center">
+                        <i class="fa fa-line-chart text-primary mr-2"></i>
+                        PSV Diagram & Result
+                    </h3>
+                    
+                    <!-- 初始状态提示 -->
+                    <div id="initialState" class="text-center py-12">
+                        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4">
+                            <i class="fa fa-info text-2xl"></i>
+                        </div>
+                        <p class="text-neutral">Please fill in the parameters and click "Calculate Pressure Rating" to view the results.</p>
                     </div>
                     
-                    <div id="resultContent" class="hidden space-y-6 flex-1">
-                        <div class="result-highlight">
-                            <h3 class="font-bold text-lg text-dark">PED 分类结果</h3>
-                            <div id="categoryResult" class="text-3xl font-bold mt-2"></div>
+                    <!-- 结果显示区域（默认隐藏） -->
+                    <div id="resultArea" class="hidden">
+                        <!-- 结果摘要 -->
+                        <div class="bg-neutral-light rounded-lg p-4 mb-6">
+                            <h4 class="font-semibold mb-2">Rating Result</h4>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <p class="text-sm text-neutral">Equipment Type</p>
+                                    <p id="resultEquipmentType" class="font-medium"></p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-neutral">Fluid Type</p>
+                                    <p id="resultFluidType" class="font-medium"></p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-neutral" id="paramLabel">Pressure/Volume</p>
+                                    <p id="resultParams" class="font-medium"></p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-neutral">Pressure Rating</p>
+                                    <p id="resultRating" class="font-medium text-primary"></p>
+                                </div>
+                            </div>
                         </div>
                         
-                        <div class="space-y-3">
-                            <div class="flex justify-between items-center p-3 bg-light rounded-md">
-                                <span class="font-medium">P×V 乘积：</span>
-                                <span id="pvProduct" class="font-semibold"></span>
+                        <!-- PSV图表 -->
+                        <div class="relative">
+                            <div class="aspect-[4/3] bg-neutral-light/50 rounded-lg overflow-hidden mb-4">
+                                <!-- PSV图将在这里显示 -->
+                                <canvas id="psvChart" class="w-full h-full"></canvas>
                             </div>
-                            <div class="flex justify-between items-center p-3 bg-light rounded-md">
-                                <span class="font-medium">介质风险系数 (K)：</span>
-                                <span id="mediumCoefficient" class="font-semibold"></span>
+                            <div class="text-sm text-neutral text-center">
+                                PSV Diagram with highlighted rating area for selected parameters
                             </div>
-                            <div class="flex justify-between items-center p-3 bg-light rounded-md">
-                                <span class="font-medium">主导介质：</span>
-                                <span id="dominantMedium" class="font-semibold"></span>
-                            </div>
-                            <div class="flex justify-between items-center p-3 bg-light rounded-md">
-                                <span class="font-medium">K×P×V 乘积：</span>
-                                <span id="kpvProduct" class="font-semibold"></span>
-                            </div>
-                        </div>
-                        
-                        <div class="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                            <h4 class="font-semibold text-primary mb-2 flex items-center">
-                                <i class="fa fa-info-circle mr-1"></i> 合规要求
-                            </h4>
-                            <p class="text-sm text-gray-700" id="complianceText"></p>
-                        </div>
-                        
-                        <div class="mt-auto pt-4 border-t border-gray-200">
-                            <p class="text-sm text-gray-500 italic">
-                                计算日期：<span id="calculationDate"></span>
-                            </p>
-                            <p class="text-xs text-gray-400 mt-1">
-                                注：此结果仅供参考，最终分类需由合格的认证机构确认
-                            </p>
                         </div>
                     </div>
                 </div>
-            </div>
-        </section>
-
-        <!-- 分类标准 -->
-        <section id="classification" class="mb-12 bg-white rounded-lg p-6 card-shadow">
-            <h2 class="text-2xl font-bold mb-6 text-primary flex items-center">
-                <i class="fa fa-list-ol mr-2"></i>PED分类标准
-            </h2>
-            
-            <div class="space-y-6">
-                <div>
-                    <h3 class="text-lg font-semibold mb-3 text-dark">PED 2014/68/EU 分类体系</h3>
-                    <p class="text-gray-700 mb-3">
-                        压力设备根据其危险程度分为以下类别，从低到高风险依次为：
-                    </p>
-                    <ul class="list-disc pl-6 text-gray-700 space-y-2 mb-4">
-                        <li><span class="font-medium">I类</span> - 低风险设备</li>
-                        <li><span class="font-medium">II类</span> - 中低风险设备</li>
-                        <li><span class="font-medium">III类</span> - 中高风险设备</li>
-                        <li><span class="font-medium">IV类</span> - 高风险设备</li>
-                    </ul>
-                    <p class="text-gray-700">
-                        分类基于压力(P)和容积(V)的乘积，并根据介质危险性应用相应的系数(K)进行调整。
-                    </p>
-                </div>
                 
-                <div>
-                    <h3 class="text-lg font-semibold mb-3 text-dark">介质风险系数(K)</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                <tr>
-                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">介质类别</th>
-                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">风险系数 K</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">暴露于环境有危险 - 第1组</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">10.0</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">高毒性物质 - 第2组</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">5.0</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">有毒物质 - 第3组</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">1.0</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">易燃物质 - 第4组</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">1.0</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">氧化性物质 - 第5组</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">0.5</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">其他危险物质 - 第6组</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">0.5</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">非危险物质 - 第7组</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">0.2</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                <!-- 信息卡片 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-xl shadow-soft p-6 card-hover">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center">
+                            <i class="fa fa-info-circle text-primary mr-2"></i>
+                            About PED Ratings
+                        </h3>
+                        <p class="text-neutral text-sm">The Pressure Equipment Directive (PED) classifies equipment based on pressure, volume/DN, and fluid properties. This classification determines the conformity assessment procedures required.</p>
+                        <a href="#" class="text-primary text-sm mt-3 inline-block hover:underline">Learn more about PED →</a>
                     </div>
-                </div>
-                
-                <div>
-                    <h3 class="text-lg font-semibold mb-3 text-dark">分类阈值 (K×P×V)</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead>
-                                <tr>
-                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备类别</th>
-                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">气体/蒸汽 (bar·L)</th>
-                                    <th class="px-4 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">液体 (bar·L)</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-success">I类</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">≥ 100 且 < 500</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">≥ 1000 且 < 5000</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-amber-600">II类</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">≥ 500 且 < 2000</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">≥ 5000 且 < 20000</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-orange-600">III类</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">≥ 2000 且 < 10000</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">≥ 20000 且 < 100000</td>
-                                </tr>
-                                <tr>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-danger">IV类</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">≥ 10000</td>
-                                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">≥ 100000</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    
+                    <div class="bg-white rounded-xl shadow-soft p-6 card-hover">
+                        <h3 class="text-lg font-semibold mb-3 flex items-center">
+                            <i class="fa fa-lightbulb-o text-primary mr-2"></i>
+                            How to Use
+                        </h3>
+                        <p class="text-neutral text-sm">Select your equipment type, fluid type, enter pressure and volume/DN values, then click calculate. The corresponding PSV diagram will show your rating classification.</p>
                     </div>
                 </div>
             </div>
-        </section>
-
-        <!-- 使用指南 -->
-        <section id="guidance" class="mb-12 bg-white rounded-lg p-6 card-shadow">
-            <h2 class="text-2xl font-bold mb-6 text-primary flex items-center">
-                <i class="fa fa-file-text-o mr-2"></i>使用指南
-            </h2>
-            
-            <div class="space-y-6">
-                <div>
-                    <h3 class="text-lg font-semibold mb-3 text-dark">如何使用本计算器</h3>
-                    <ol class="list-decimal pl-6 text-gray-700 space-y-2">
-                        <li>选择适当的设备类型和内部流体状态</li>
-                        <li>输入设计压力（bar）和容器容积（升）</li>
-                        <li>添加容器中所有介质的信息，包括名称和危险性分类</li>
-                        <li>点击"计算PED类别"按钮获取结果</li>
-                    </ol>
-                </div>
-                
-                <div>
-                    <h3 class="text-lg font-semibold mb-3 text-dark">重要说明</h3>
-                    <ul class="list-disc pl-6 text-gray-700 space-y-2">
-                        <li>本计算器仅适用于符合PED 2014/68/EU定义的压力设备</li>
-                        <li>设计压力低于0.5 bar的设备通常不在PED范围内</li>
-                        <li>容积小于0.1升的设备通常不在PED范围内</li>
-                        <li>对于多介质设备，分类基于最危险的介质</li>
-                        <li>特殊类型的压力设备可能有额外的分类要求</li>
-                        <li>本工具的计算结果不能替代专业的合规性评估</li>
-                    </ul>
-                </div>
-                
-                <div>
-                    <h3 class="text-lg font-semibold mb-3 text-dark">介质分类参考</h3>
-                    <p class="text-gray-700 mb-2">介质危险性分类应参考以下标准：</p>
-                    <ul class="list-disc pl-6 text-gray-700 space-y-1">
-                        <li>PED 2014/68/EU 附件Ⅰ</li>
-                        <li>CLP法规 (EC) No 1272/2008</li>
-                        <li>ADR/RID关于危险货物的分类</li>
-                        <li>物质安全数据表(MSDS/SDS)</li>
-                    </ul>
-                </div>
-            </div>
-        </section>
+        </div>
     </main>
-
-    <footer class="bg-dark text-white py-8">
-        <div class="container mx-auto px-4">
+    
+    <!-- 页脚 -->
+    <footer class="bg-white border-t border-gray-200 mt-12">
+        <div class="container mx-auto px-4 py-8">
             <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="mb-4 md:mb-0 text-center md:text-left">
-                    <p class="text-sm">&copy; 2025 PED压力容器类别计算工具</p>
-                    <p class="text-xs text-gray-400 mt-1">本工具仅供参考，不构成法律或技术建议</p>
+                <div class="mb-4 md:mb-0">
+                    <p class="text-neutral text-sm">© 2023 PED Pressure Rating Tool. All rights reserved.</p>
                 </div>
-                <div class="flex flex-wrap justify-center space-x-6">
-                    <a href="#calculator" class="text-gray-300 hover:text-white transition-all-300 text-sm">计算器</a>
-                    <a href="#classification" class="text-gray-300 hover:text-white transition-all-300 text-sm">分类标准</a>
-                    <a href="#guidance" class="text-gray-300 hover:text-white transition-all-300 text-sm">使用指南</a>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-neutral hover:text-primary transition-all-300">
+                        <i class="fa fa-file-text-o"></i> Terms
+                    </a>
+                    <a href="#" class="text-neutral hover:text-primary transition-all-300">
+                        <i class="fa fa-shield"></i> Privacy
+                    </a>
+                    <a href="#" class="text-neutral hover:text-primary transition-all-300">
+                        <i class="fa fa-envelope"></i> Contact
+                    </a>
                 </div>
             </div>
         </div>
     </footer>
 
+    <!-- JavaScript -->
     <script>
-        // 介质计数器
-        let mediumCounter = 1;
+        // 全局变量
+        let psvChart = null;
+        let currentChartType = '';
         
-        // 添加介质按钮事件
-        document.getElementById('addMediumBtn').addEventListener('click', function() {
-            const container = document.getElementById('mediumContainer');
-            
-            // 创建新的介质卡片
-            const mediumCard = document.createElement('div');
-            mediumCard.className = 'medium-card';
-            mediumCard.dataset.index = mediumCounter;
-            
-            mediumCard.innerHTML = `
-                <div class="absolute top-3 right-3">
-                    <button type="button" class="remove-medium text-gray-400 hover:text-danger transition-all-300">
-                        <i class="fa fa-times"></i>
-                    </button>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="md:col-span-1">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">介质名称 <span class="text-danger">*</span></label>
-                        <input type="text" class="medium-name w-full px-4 py-2 border border-gray-300 rounded-md input-focus" required placeholder="例如：丙烯">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-sm font-medium text-gray-700 mb-1">介质危险性分类 <span class="text-danger">*</span></label>
-                        <select class="medium-risk w-full px-4 py-2 border border-gray-300 rounded-md input-focus" required>
-                            <option value="">请选择介质危险性</option>
-                            <option value="exposure">暴露于环境有危险 - 第1组</option>
-                            <option value="highlyToxic">高毒性物质 - 第2组</option>
-                            <option value="toxic">有毒物质 - 第3组</option>
-                            <option value="flammable">易燃物质 - 第4组</option>
-                            <option value="oxidizing">氧化性物质 - 第5组</option>
-                            <option value="otherDangerous">其他危险物质 - 第6组</option>
-                            <option value="nonDangerous">非危险物质 - 第7组</option>
-                        </select>
-                    </div>
-                </div>
-            `;
-            
-            // 添加到容器
-            container.appendChild(mediumCard);
-            
-            // 启用所有删除按钮（至少保留一个介质）
-            updateRemoveButtons();
-            
-            // 为新添加的删除按钮绑定事件
-            mediumCard.querySelector('.remove-medium').addEventListener('click', function() {
-                mediumCard.remove();
-                updateRemoveButtons();
-            });
-            
-            mediumCounter++;
-        });
+        // DOM元素
+        const equipmentTypeSelect = document.getElementById('equipmentType');
+        const fluidTypeSelect = document.getElementById('fluidType');
+        const fluidTypeContainer = document.getElementById('fluidTypeContainer');
+        const volumeContainer = document.getElementById('volume').parentElement.parentElement;
+        const dnContainer = document.getElementById('dnContainer');
+        const paramLabel = document.getElementById('paramLabel');
+        const calculatorForm = document.getElementById('calculatorForm');
+        const initialState = document.getElementById('initialState');
+        const resultArea = document.getElementById('resultArea');
         
-        // 更新删除按钮状态
-        function updateRemoveButtons() {
-            const mediumCards = document.querySelectorAll('.medium-card');
-            const removeButtons = document.querySelectorAll('.remove-medium');
+        // 结果显示元素
+        const resultEquipmentType = document.getElementById('resultEquipmentType');
+        const resultFluidType = document.getElementById('resultFluidType');
+        const resultParams = document.getElementById('resultParams');
+        const resultRating = document.getElementById('resultRating');
+        
+        // 9种PSV图表的数据模型
+        const psvChartsData = {
+            // Chart 1 - Vessels for Group 1 gases
+            'vessel-group1gas': {
+                type: 'volume',
+                title: 'Vessels for Group 1 Gases',
+                xLabel: 'Volume (L)',
+                yLabel: 'Pressure (bar)',
+                logScale: true,
+                boundaries: [
+                    {line: 'PS·V=25', points: [{v:0.1, p:250}, {v:10000, p:0.0025}]},
+                    {line: 'PS·V=50', points: [{v:0.1, p:500}, {v:10000, p:0.005}]},
+                    {line: 'PS·V=200', points: [{v:0.1, p:2000}, {v:10000, p:0.02}]},
+                    {line: 'PS·V=1000', points: [{v:0.1, p:10000}, {v:10000, p:0.1}]},
+                    {line: 'PS=0.5', points: [{v:0.1, p:0.5}, {v:10000, p:0.5}]},
+                    {line: 'PS=200', points: [{v:0.1, p:200}, {v:5, p:200}]},
+                    {line: 'PS=1000', points: [{v:0.1, p:1000}, {v:1, p:1000}]},
+                    {line: 'V=1', points: [{v:1, p:0.5}, {v:1, p:1000}]}
+                ],
+                regions: [
+                    {
+                        id: 'I',
+                        conditions: (p, v) => (p * v < 25 || (v <= 1 && p < 200)) && p < 200 && p >= 0.5
+                    },
+                    {
+                        id: 'II',
+                        conditions: (p, v) => (p * v >= 25 && p * v < 50) && p < 200 && p >= 0.5
+                    },
+                    {
+                        id: 'III',
+                        conditions: (p, v) => (p * v >= 50 && p * v < 1000) || (v <= 1 && p >= 200 && p < 1000)
+                    },
+                    {
+                        id: 'IV',
+                        conditions: (p, v) => (p * v >= 1000) || (v <= 1 && p >= 1000) || p >= 1000
+                    }
+                ]
+            },
             
-            // 如果只有一个介质，禁用删除按钮
-            if (mediumCards.length <= 1) {
-                removeButtons.forEach(btn => btn.disabled = true);
-            } else {
-                removeButtons.forEach(btn => btn.disabled = false);
+            // Chart 2 - Vessels for Group 2 gases
+            'vessel-group2gas': {
+                type: 'volume',
+                title: 'Vessels for Group 2 Gases',
+                xLabel: 'Volume (L)',
+                yLabel: 'Pressure (bar)',
+                logScale: true,
+                boundaries: [
+                    {line: 'PS·V=50', points: [{v:0.1, p:500}, {v:10000, p:0.005}]},
+                    {line: 'PS·V=200', points: [{v:0.1, p:2000}, {v:10000, p:0.02}]},
+                    {line: 'PS·V=1000', points: [{v:0.1, p:10000}, {v:10000, p:0.1}]},
+                    {line: 'PS·V=3000', points: [{v:0.1, p:30000}, {v:10000, p:0.3}]},
+                    {line: 'PS=0.5', points: [{v:0.1, p:0.5}, {v:10000, p:0.5}]},
+                    {line: 'PS=4', points: [{v:400, p:4}, {v:10000, p:4}]},
+                    {line: 'PS=1000', points: [{v:0.1, p:1000}, {v:3, p:1000}]},
+                    {line: 'PS=3000', points: [{v:0.1, p:3000}, {v:1, p:3000}]},
+                    {line: 'V=1', points: [{v:1, p:0.5}, {v:1, p:3000}]}
+                ],
+                regions: [
+                    {
+                        id: 'I',
+                        conditions: (p, v) => (p * v < 50 || (v <= 1 && p < 1000)) && p < 1000 && p >= 0.5
+                    },
+                    {
+                        id: 'II',
+                        conditions: (p, v) => (p * v >= 50 && p * v < 200) && p < 1000 && p >= 0.5
+                    },
+                    {
+                        id: 'III',
+                        conditions: (p, v) => (p * v >= 200 && p * v < 3000) || (v <= 1 && p >= 1000 && p < 3000) || (v > 400 && p >=4 && p < 0.5*(30000/p))
+                    },
+                    {
+                        id: 'IV',
+                        conditions: (p, v) => (p * v >= 3000) || (v <= 1 && p >= 3000) || (v > 400 && p >=4)
+                    }
+                ]
+            },
+            
+            // Chart 3 - Vessels for Group 1 liquids
+            'vessel-group1liquid': {
+                type: 'volume',
+                title: 'Vessels for Group 1 Liquids',
+                xLabel: 'Volume (L)',
+                yLabel: 'Pressure (bar)',
+                logScale: true,
+                boundaries: [
+                    {line: 'PS·V=200', points: [{v:0.1, p:2000}, {v:10000, p:0.02}]},
+                    {line: 'PS=0.5', points: [{v:0.1, p:0.5}, {v:10000, p:0.5}]},
+                    {line: 'PS=10', points: [{v:20, p:10}, {v:10000, p:10}]},
+                    {line: 'PS=500', points: [{v:1, p:500}, {v:10000, p:500}]},
+                    {line: 'V=1', points: [{v:1, p:0.5}, {v:1, p:10000}]}
+                ],
+                regions: [
+                    {
+                        id: 'I',
+                        conditions: (p, v) => (p * v < 200 && p < 10) || (v <= 1 && p < 500)
+                    },
+                    {
+                        id: 'II',
+                        conditions: (p, v) => (p * v >= 200 && p < 10) || (p >=10 && p < 500) || (v > 1 && p >=500)
+                    },
+                    {
+                        id: 'III',
+                        conditions: (p, v) => p >= 500
+                    }
+                ]
+            },
+            
+            // Chart 4 - Vessels for Group 2 liquids
+            'vessel-group2liquid': {
+                type: 'volume',
+                title: 'Vessels for Group 2 Liquids',
+                xLabel: 'Volume (L)',
+                yLabel: 'Pressure (bar)',
+                logScale: true,
+                boundaries: [
+                    {line: 'PS·V=10000', points: [{v:10, p:1000}, {v:10000, p:1}]},
+                    {line: 'PS=0.5', points: [{v:0.1, p:0.5}, {v:10000, p:0.5}]},
+                    {line: 'PS=10', points: [{v:1000, p:10}, {v:10000, p:10}]},
+                    {line: 'PS=500', points: [{v:20, p:500}, {v:10000, p:500}]},
+                    {line: 'PS=1000', points: [{v:0.1, p:1000}, {v:10, p:1000}]},
+                    {line: 'V=10', points: [{v:10, p:0.5}, {v:10, p:1000}]}
+                ],
+                regions: [
+                    {
+                        id: 'I',
+                        conditions: (p, v) => (p * v < 10000 && p < 10) || (v <= 10 && p < 1000)
+                    },
+                    {
+                        id: 'II',
+                        conditions: (p, v) => (p * v >= 10000 && p < 500) || (p >=10 && p < 500) || (v > 10 && p >=1000 && p < 500)
+                    },
+                    {
+                        id: 'III',
+                        conditions: (p, v) => p >= 500
+                    }
+                ]
+            },
+            
+            // Chart 5 - Steam Generators
+            'steam-generator': {
+                type: 'volume',
+                title: 'Steam Generators',
+                xLabel: 'Volume (L)',
+                yLabel: 'Pressure (bar)',
+                logScale: true,
+                boundaries: [
+                    {line: 'PS·V=50', points: [{v:2, p:25}, {v:1000, p:0.05}]},
+                    {line: 'PS·V=200', points: [{v:2, p:100}, {v:1000, p:0.2}]},
+                    {line: 'PS·V=3000', points: [{v:2, p:1500}, {v:1000, p:3}]},
+                    {line: 'PS=0.5', points: [{v:0.1, p:0.5}, {v:10000, p:0.5}]},
+                    {line: 'PS=32', points: [{v:2, p:32}, {v:93.75, p:32}]},
+                    {line: 'V=2', points: [{v:2, p:0.5}, {v:2, p:1500}]},
+                    {line: 'V=1000', points: [{v:1000, p:0.5}, {v:1000, p:3}]}
+                ],
+                regions: [
+                    {
+                        id: 'I',
+                        conditions: (p, v) => (p * v < 50 && v > 2) || (v <= 2 && p < 32)
+                    },
+                    {
+                        id: 'II',
+                        conditions: (p, v) => (p * v >= 50 && p * v < 200) && v > 2
+                    },
+                    {
+                        id: 'III',
+                        conditions: (p, v) => (p * v >= 200 && p * v < 3000) && v > 2
+                    },
+                    {
+                        id: 'IV',
+                        conditions: (p, v) => (p * v >= 3000 && v > 2) || (v <= 2 && p >= 32) || v > 1000
+                    }
+                ]
+            },
+            
+            // Chart 6 - Piping for Group 1 gases
+            'piping-group1gas': {
+                type: 'dn',
+                title: 'Piping for Group 1 Gases',
+                xLabel: 'Nominal Diameter (DN)',
+                yLabel: 'Pressure (bar)',
+                logScale: true,
+                boundaries: [
+                    {line: 'PS·DN=1000', points: [{dn:25, p:40}, {dn:100, p:10}]},
+                    {line: 'PS·DN=2500', points: [{dn:100, p:25}, {dn:350, p:7.14}]},
+                    {line: 'PS=0.5', points: [{dn:0.1, p:0.5}, {dn:10000, p:0.5}]},
+                    {line: 'PS=35', points: [{dn:25, p:35}, {dn:100, p:35}]},
+                    {line: 'DN=25', points: [{dn:25, p:0.5}, {dn:25, p:40}]},
+                    {line: 'DN=100', points: [{dn:100, p:0.5}, {dn:100, p:25}]}
+                ],
+                regions: [
+                    {
+                        id: 'I',
+                        conditions: (p, dn) => (p * dn < 1000 && dn > 25) || (dn <= 25 && p < 35)
+                    },
+                    {
+                        id: 'II',
+                        conditions: (p, dn) => (p * dn >= 1000 && p * dn < 2500) && dn > 25 && dn <= 100
+                    },
+                    {
+                        id: 'III',
+                        conditions: (p, dn) => (p * dn >= 2500 && dn > 100) || (dn <= 100 && p >= 35)
+                    }
+                ]
+            },
+            
+            // Chart 7 - Piping for Group 2 gases
+            'piping-group2gas': {
+                type: 'dn',
+                title: 'Piping for Group 2 Gases',
+                xLabel: 'Nominal Diameter (DN)',
+                yLabel: 'Pressure (bar)',
+                logScale: true,
+                boundaries: [
+                    {line: 'PS·DN=1000', points: [{dn:32, p:31.25}, {dn:100, p:10}]},
+                    {line: 'PS·DN=3500', points: [{dn:100, p:35}, {dn:250, p:14}]},
+                    {line: 'PS·DN=5000', points: [{dn:250, p:20}, {dn:10000, p:0.5}]},
+                    {line: 'PS=0.5', points: [{dn:0.1, p:0.5}, {dn:10000, p:0.5}]},
+                    {line: 'DN=32', points: [{dn:32, p:0.5}, {dn:32, p:31.25}]},
+                    {line: 'DN=100', points: [{dn:100, p:0.5}, {dn:100, p:35}]},
+                    {line: 'DN=250', points: [{dn:250, p:0.5}, {dn:250, p:20}]}
+                ],
+                regions: [
+                    {
+                        id: 'I',
+                        conditions: (p, dn) => (p * dn < 1000 && dn > 32) || (dn <= 32)
+                    },
+                    {
+                        id: 'II',
+                        conditions: (p, dn) => (p * dn >= 1000 && p * dn < 3500 && dn > 32 && dn <= 100) || (dn > 100 && dn <= 250 && p * dn < 5000)
+                    },
+                    {
+                        id: 'III',
+                        conditions: (p, dn) => (p * dn >= 3500 && dn > 100 && dn <= 250) || (p * dn >= 5000 && dn > 250)
+                    }
+                ]
+            },
+            
+            // Chart 8 - Piping for Group 1 liquids
+            'piping-group1liquid': {
+                type: 'dn',
+                title: 'Piping for Group 1 Liquids',
+                xLabel: 'Nominal Diameter (DN)',
+                yLabel: 'Pressure (bar)',
+                logScale: true,
+                boundaries: [
+                    {line: 'PS·DN=2000', points: [{dn:25, p:80}, {dn:200, p:10}]},
+                    {line: 'PS=0.5', points: [{dn:0.1, p:0.5}, {dn:10000, p:0.5}]},
+                    {line: 'PS=10', points: [{dn:200, p:10}, {dn:10000, p:10}]},
+                    {line: 'PS=500', points: [{dn:25, p:500}, {dn:10000, p:500}]},
+                    {line: 'DN=25', points: [{dn:25, p:0.5}, {dn:25, p:500}]}
+                ],
+                regions: [
+                    {
+                        id: 'I',
+                        conditions: (p, dn) => (p * dn < 2000 && dn > 25) || (p < 10 && dn > 200)
+                    },
+                    {
+                        id: 'II',
+                        conditions: (p, dn) => (p * dn >= 2000 && dn > 25 && dn <= 200) || (p >=10 && p < 500 && dn > 200)
+                    },
+                    {
+                        id: 'III',
+                        conditions: (p, dn) => p >= 500
+                    }
+                ]
+            },
+            
+            // Chart 9 - Piping for Group 2 liquids
+            'piping-group2liquid': {
+                type: 'dn',
+                title: 'Piping for Group 2 Liquids',
+                xLabel: 'Nominal Diameter (DN)',
+                yLabel: 'Pressure (bar)',
+                logScale: true,
+                boundaries: [
+                    {line: 'PS·DN=5000', points: [{dn:200, p:25}, {dn:500, p:10}]},
+                    {line: 'PS=0.5', points: [{dn:0.1, p:0.5}, {dn:10000, p:0.5}]},
+                    {line: 'PS=10', points: [{dn:500, p:10}, {dn:10000, p:10}]},
+                    {line: 'PS=500', points: [{dn:200, p:500}, {dn:10000, p:500}]},
+                    {line: 'DN=200', points: [{dn:200, p:0.5}, {dn:200, p:500}]}
+                ],
+                regions: [
+                    {
+                        id: 'I',
+                        conditions: (p, dn) => (p * dn < 5000 && dn > 200) || (p < 10 && dn > 500)
+                    },
+                    {
+                        id: 'II',
+                        conditions: (p, dn) => (p * dn >= 5000 && dn > 200 && dn <= 500) || (p >=10 && p < 500 && dn > 500) || p >=500
+                    }
+                ]
             }
-        }
+        };
         
-        // 初始删除按钮事件绑定
-        document.querySelector('.remove-medium').addEventListener('click', function() {
-            const mediumCard = this.closest('.medium-card');
-            mediumCard.remove();
-            updateRemoveButtons();
+        // 监听设备类型变化，控制流体类型和体积/DN显示
+        equipmentTypeSelect.addEventListener('change', function() {
+            // 控制流体类型显示
+            if (this.value === 'steam-generator') {
+                fluidTypeContainer.classList.add('hidden');
+                fluidTypeSelect.required = false;
+            } else {
+                fluidTypeContainer.classList.remove('hidden');
+                fluidTypeSelect.required = true;
+            }
+            
+            // 控制体积或DN显示
+            if (this.value === 'piping') {
+                // 管道类型显示DN输入
+                volumeContainer.classList.add('hidden');
+                dnContainer.classList.remove('hidden');
+                paramLabel.textContent = 'Pressure/DN';
+            } else {
+                // 容器和蒸汽发生器显示体积输入
+                volumeContainer.classList.remove('hidden');
+                dnContainer.classList.add('hidden');
+                paramLabel.textContent = 'Pressure/Volume';
+            }
         });
-
+        
         // 表单提交处理
-        document.getElementById('calculationForm').addEventListener('submit', function(e) {
+        calculatorForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            calculateCategory();
-        });
-
-        // 介质风险等级和系数映射
-        const mediumRiskInfo = {
-            'exposure': { level: 6, factor: 10.0, text: '暴露于环境有危险 - 第1组' },
-            'highlyToxic': { level: 5, factor: 5.0, text: '高毒性物质 - 第2组' },
-            'toxic': { level: 4, factor: 1.0, text: '有毒物质 - 第3组' },
-            'flammable': { level: 3, factor: 1.0, text: '易燃物质 - 第4组' },
-            'oxidizing': { level: 2, factor: 0.5, text: '氧化性物质 - 第5组' },
-            'otherDangerous': { level: 1, factor: 0.5, text: '其他危险物质 - 第6组' },
-            'nonDangerous': { level: 0, factor: 0.2, text: '非危险物质 - 第7组' }
-        };
-
-        // 合规要求文本
-        const complianceTexts = {
-            'I': 'I类设备需要符合基本安全要求，制造商可自行声明符合性。通常不需要 notified body（公告机构）参与。',
-            'II': 'II类设备需要符合基本安全要求，并需要进行EC型式检查。Notified body需参与设计审查。',
-            'III': 'III类设备需要全面的质量保证体系，包括设计、制造和测试的全程监督。Notified body深度参与。',
-            'IV': 'IV类设备是风险最高的类别，需要最严格的合规程序，包括全面的设计审批和制造过程监督。'
-        };
-
-        // 计算类别函数
-        function calculateCategory() {
-            // 获取输入值
-            const designPressure = parseFloat(document.getElementById('designPressure').value);
-            const vesselVolume = parseFloat(document.getElementById('vesselVolume').value);
-            const fluidState = document.getElementById('fluidState').value;
             
-            // 验证压力和容积是否在PED范围内
-            if (designPressure < 0.5 || vesselVolume < 0.1) {
-                alert('根据PED 2014/68/EU，设计压力低于0.5 bar或容积小于0.1升的设备通常不在指令范围内。');
-            }
+            // 获取表单数据
+            const equipmentType = equipmentTypeSelect.value;
+            const fluidType = equipmentType === 'steam-generator' ? 'n/a' : fluidTypeSelect.value;
+            const pressure = parseFloat(document.getElementById('pressure').value);
             
-            // 获取所有介质信息并找出风险最高的介质
-            const mediumNames = document.querySelectorAll('.medium-name');
-            const mediumRisks = document.querySelectorAll('.medium-risk');
-            
-            let highestRiskLevel = -1;
-            let highestRiskMedium = null;
-            let highestRiskCode = null;
-            
-            for (let i = 0; i < mediumNames.length; i++) {
-                const name = mediumNames[i].value;
-                const riskCode = mediumRisks[i].value;
-                const riskLevel = mediumRiskInfo[riskCode].level;
-                
-                if (riskLevel > highestRiskLevel) {
-                    highestRiskLevel = riskLevel;
-                    highestRiskMedium = name;
-                    highestRiskCode = riskCode;
-                }
-            }
-            
-            // 计算参数
-            const pvProduct = designPressure * vesselVolume;
-            const mediumCoefficient = mediumRiskInfo[highestRiskCode].factor;
-            const kpvProduct = mediumCoefficient * pvProduct;
-            const dominantMediumText = `${highestRiskMedium} (${mediumRiskInfo[highestRiskCode].text})`;
-            
-            // 根据流体状态和kpvProduct判定类别
-            let category, categoryClass;
-            
-            if (fluidState === 'gas' || fluidState === 'twoPhase') {
-                // 气体或气液两相
-                if (kpvProduct >= 10000) {
-                    category = 'IV类';
-                    categoryClass = 'text-danger';
-                } else if (kpvProduct >= 2000) {
-                    category = 'III类';
-                    categoryClass = 'text-orange-600';
-                } else if (kpvProduct >= 500) {
-                    category = 'II类';
-                    categoryClass = 'text-amber-600';
-                } else if (kpvProduct >= 100) {
-                    category = 'I类';
-                    categoryClass = 'text-success';
-                } else {
-                    category = '非受监管';
-                    categoryClass = 'text-gray-500';
-                }
+            // 根据设备类型获取体积或DN值
+            let volume, dn, xValue;
+            if (equipmentType === 'piping') {
+                dn = parseFloat(document.getElementById('dn').value);
+                xValue = dn;
             } else {
-                // 液体
-                if (kpvProduct >= 100000) {
-                    category = 'IV类';
-                    categoryClass = 'text-danger';
-                } else if (kpvProduct >= 20000) {
-                    category = 'III类';
-                    categoryClass = 'text-orange-600';
-                } else if (kpvProduct >= 5000) {
-                    category = 'II类';
-                    categoryClass = 'text-amber-600';
-                } else if (kpvProduct >= 1000) {
-                    category = 'I类';
-                    categoryClass = 'text-success';
-                } else {
-                    category = '非受监管';
-                    categoryClass = 'text-gray-500';
+                volume = parseFloat(document.getElementById('volume').value);
+                xValue = volume;
+            }
+            
+            // 确定图表类型
+            let chartKey;
+            if (equipmentType === 'steam-generator') {
+                chartKey = 'steam-generator';
+            } else {
+                chartKey = `${equipmentType}-${fluidType}`;
+            }
+            
+            currentChartType = chartKey;
+            
+            // 显示结果区域，隐藏初始状态
+            initialState.classList.add('hidden');
+            resultArea.classList.remove('hidden');
+            
+            // 显示输入参数
+            resultEquipmentType.textContent = formatEquipmentType(equipmentType);
+            resultFluidType.textContent = equipmentType === 'steam-generator' ? 'N/A' : formatFluidType(fluidType);
+            
+            if (equipmentType === 'piping') {
+                resultParams.textContent = `${pressure} bar / ${dn} DN`;
+            } else {
+                resultParams.textContent = `${pressure} bar / ${volume} L`;
+            }
+            
+            // 计算压力等级
+            const rating = calculatePressureRating(chartKey, pressure, xValue);
+            resultRating.textContent = `Category ${rating}`;
+            
+            // 绘制PSV图并高亮显示相应区域
+            drawPSVChart(chartKey, pressure, xValue, rating);
+            
+            // 添加结果显示动画
+            resultArea.classList.add('animate-pulse');
+            setTimeout(() => {
+                resultArea.classList.remove('animate-pulse');
+            }, 500);
+        });
+        
+        // 格式化设备类型显示文本
+        function formatEquipmentType(type) {
+            switch(type) {
+                case 'vessel': return 'Vessel';
+                case 'piping': return 'Piping';
+                case 'steam-generator': return 'Steam Generator';
+                default: return type;
+            }
+        }
+        
+        // 格式化流体类型显示文本
+        function formatFluidType(type) {
+            switch(type) {
+                case 'group1gas': return 'Group 1 Gas';
+                case 'group2gas': return 'Group 2 Gas';
+                case 'group1liquid': return 'Group 1 Liquid';
+                case 'group2liquid': return 'Group 2 Liquid';
+                default: return type;
+            }
+        }
+        
+        // 计算压力等级
+        function calculatePressureRating(chartKey, pressure, xValue) {
+            const chartData = psvChartsData[chartKey];
+            if (!chartData || !chartData.regions) return 'Unknown';
+            
+            // 检查是否在Article 4, paragraph 3区域（压力小于0.5bar）
+            if (pressure < 0.5) {
+                return 'Article 4, paragraph 3';
+            }
+            
+            // 检查每个等级区域
+            for (const region of chartData.regions) {
+                if (chartData.type === 'volume') {
+                    if (region.conditions(pressure, xValue)) {
+                        return region.id;
+                    }
+                } else { // dn类型
+                    if (region.conditions(pressure, xValue)) {
+                        return region.id;
+                    }
                 }
             }
             
-            // 显示结果
-            document.getElementById('initialMessage').classList.add('hidden');
-            document.getElementById('resultContent').classList.remove('hidden');
-            
-            // 填充结果数据
-            document.getElementById('pvProduct').textContent = pvProduct.toFixed(1) + ' bar·L';
-            document.getElementById('mediumCoefficient').textContent = mediumCoefficient;
-            document.getElementById('dominantMedium').textContent = dominantMediumText;
-            document.getElementById('kpvProduct').textContent = kpvProduct.toFixed(1) + ' bar·L';
-            
-            // 设置类别显示
-            const categoryElement = document.getElementById('categoryResult');
-            categoryElement.className = `${categoryClass} transition-all-300`;
-            categoryElement.textContent = category;
-            
-            // 设置合规要求文本
-            const complianceElement = document.getElementById('complianceText');
-            const categoryCode = category.replace('类', '');
-            complianceElement.textContent = categoryCode in complianceTexts ? 
-                complianceTexts[categoryCode] : 
-                '该设备可能不在PED 2014/68/EU的监管范围内。';
-            
-            // 设置计算日期
-            const now = new Date();
-            document.getElementById('calculationDate').textContent = now.toLocaleString();
-            
-            // 添加结果卡片动画效果
-            const resultCard = document.getElementById('resultCard');
-            resultCard.classList.add('ring-2', 'ring-accent');
-            setTimeout(() => {
-                resultCard.classList.remove('ring-2', 'ring-accent');
-            }, 1000);
+            return 'Unknown';
         }
-
-        // 平滑滚动
-        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-            anchor.addEventListener('click', function (e) {
-                e.preventDefault();
-                document.querySelector(this.getAttribute('href')).scrollIntoView({
-                    behavior: 'smooth'
+        
+        // 绘制PSV图表并高亮显示相应区域
+        function drawPSVChart(chartKey, pressure, xValue, rating) {
+            const ctx = document.getElementById('psvChart').getContext('2d');
+            const chartData = psvChartsData[chartKey];
+            
+            if (!chartData) return;
+            
+            // 如果已有图表，先销毁
+            if (psvChart) {
+                psvChart.destroy();
+            }
+            
+            // 准备数据集
+            const datasets = [];
+            
+            // 添加边界线
+            chartData.boundaries.forEach((boundary, index) => {
+                const boundaryPoints = boundary.points.map(point => {
+                    return {
+                        x: chartData.type === 'volume' ? point.v : point.dn,
+                        y: point.p
+                    };
+                });
+                
+                datasets.push({
+                    type: 'line',
+                    label: boundary.line,
+                    data: boundaryPoints,
+                    borderColor: index < 4 ? `rgba(54, 162, 235, ${0.7 + index * 0.05})` : `rgba(255, 99, 132, ${0.5 + (index % 4) * 0.1})`,
+                    borderWidth: 1.5,
+                    pointRadius: 0,
+                    tension: 0,
+                    fill: false,
+                    order: index + 1 // 确保边界线在区域下方
                 });
             });
-        });
+            
+            // 添加区域填充
+            if (chartData.regions) {
+                chartData.regions.forEach((region, index) => {
+                    // 为每个区域创建填充多边形（简化版，实际应根据边界计算）
+                    // 这里使用近似方法，实际应用中可能需要更精确的区域定义
+                    datasets.push({
+                        type: 'scatter',
+                        label: `Category ${region.id}`,
+                        data: getRegionSamplePoints(chartData, region),
+                        backgroundColor: getRegionColor(index),
+                        pointRadius: 3,
+                        pointHoverRadius: 3,
+                        showLine: false,
+                        order: 0 // 确保区域在最下方
+                    });
+                });
+            }
+            
+            // 添加Article 4, paragraph 3区域
+            datasets.push({
+                type: 'line',
+                label: 'Article 4, paragraph 3',
+                data: [
+                    {x: chartData.logScale ? 0.1 : 0, y: 0.5},
+                    {x: chartData.logScale ? 10000 : 10000, y: 0.5}
+                ],
+                borderColor: 'rgba(153, 102, 255, 0.7)',
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                tension: 0,
+                fill: true,
+                backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                fillOpacity: 0.3,
+                order: -1
+            });
+            
+            // 添加当前点
+            datasets.push({
+                label: 'Your Value',
+                data: [{x: xValue, y: pressure}],
+                backgroundColor: 'rgba(22, 93, 255, 1)',
+                borderColor: 'rgba(255, 255, 255, 1)',
+                borderWidth: 2,
+                pointRadius: 8,
+                pointHoverRadius: 10,
+                showLine: false,
+                order: 100 // 确保点在最上方
+            });
+            
+            // 创建图表配置
+            const chartConfig = {
+                type: 'scatter',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: chartData.logScale ? 'logarithmic' : 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: chartData.xLabel
+                            },
+                            min: chartData.logScale ? 0.1 : 0,
+                            max: 10000,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                },
+                                color: '#6B7280',
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        },
+                        y: {
+                            type: chartData.logScale ? 'logarithmic' : 'linear',
+                            title: {
+                                display: true,
+                                text: chartData.yLabel
+                            },
+                            min: chartData.logScale ? 0.1 : 0,
+                            max: 10000,
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString();
+                                },
+                                color: '#6B7280',
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: chartData.title,
+                            font: {
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: {
+                                bottom: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    if (label) {
+                                        return `${label}: ${context.parsed.y} bar, ${context.parsed.x} ${chartData.type === 'volume' ? 'L' : 'DN'}`;
+                                    }
+                                    return `${context.parsed.y} bar, ${context.parsed.x} ${chartData.type === 'volume' ? 'L' : 'DN'}`;
+                                }
+                            }
+                        },
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false
+                    }
+                }
+            };
+            
+            // 创建图表
+            psvChart = new Chart(ctx, chartConfig);
+            
+            // 高亮显示当前等级区域
+            highlightRatingArea(rating);
+        }
+        
+        // 获取区域样本点（用于填充区域）
+        function getRegionSamplePoints(chartData, region) {
+            const points = [];
+            const step = chartData.logScale ? 1.5 : 10;
+            let x = chartData.logScale ? 0.1 : 0;
+            
+            // 生成样本点以填充区域
+            while (x <= 10000) {
+                // 找到该x值下区域内的y值范围
+                for (let y = 0.5; y <= 10000; y *= chartData.logScale ? 1.2 : 1.5) {
+                    if (chartData.type === 'volume') {
+                        if (region.conditions(y, x)) {
+                            points.push({x, y});
+                        }
+                    } else {
+                        if (region.conditions(y, x)) {
+                            points.push({x, y});
+                        }
+                    }
+                    
+                    if (!chartData.logScale && y > 1000) break;
+                }
+                
+                x = chartData.logScale ? x * step : x + step;
+            }
+            
+            return points;
+        }
+        
+        // 获取区域颜色
+        function getRegionColor(index) {
+            const colors = [
+                'rgba(75, 192, 192, 0.3)',  // 绿色
+                'rgba(54, 162, 235, 0.3)',  // 蓝色
+                'rgba(255, 206, 86, 0.3)',  // 黄色
+                'rgba(255, 99, 132, 0.3)'   // 红色
+            ];
+            return colors[index % colors.length];
+        }
+        
+        // 高亮显示当前等级区域
+        function highlightRatingArea(rating) {
+            if (!psvChart || !currentChartType) return;
+            
+            const chartData = psvChartsData[currentChartType];
+            if (!chartData || !chartData.regions) return;
+            
+            // 重置所有区域的透明度
+            psvChart.data.datasets.forEach((dataset, index) => {
+                // 区域数据集是 scatter 类型且标签以 "Category" 开头
+                if (dataset.type === 'scatter' && dataset.label && dataset.label.startsWith('Category')) {
+                    dataset.backgroundColor = dataset.backgroundColor.replace('0.3', '0.1');
+                }
+            });
+            
+            // 高亮当前等级区域
+            if (rating && !rating.includes('Article')) {
+                psvChart.data.datasets.forEach((dataset, index) => {
+                    if (dataset.type === 'scatter' && dataset.label === `Category ${rating}`) {
+                        dataset.backgroundColor = dataset.backgroundColor.replace('0.1', '0.5');
+                    }
+                });
+            }
+            
+            psvChart.update();
+        }
     </script>
 </body>
 </html>
+    
